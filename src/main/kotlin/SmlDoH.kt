@@ -208,7 +208,7 @@ class SmlDoH(
                         if(!isDoh){
                             val doh = DoHClient(dohURL,proxyAddress,proxyPort)
                             doh.use {
-                                remoteHost = doh.lookUp(remoteHost!!, "A").data[0]
+                                remoteHost = doh.lookUp(remoteHost!!, "A").data.last()
                             }
                         }
                     }
