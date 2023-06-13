@@ -23,24 +23,33 @@ import org.xbill.DNS.Type
 import org.xbill.DNS.WireParseException
 import java.io.Closeable
 import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.Proxy
 
 /**
  * DNS-over-HTTPS (DoH) client.
  *
  * @param resolverURL The URL to the DoH resolver (defaults to Cloudflare)
  */
-public class DoHClient(public val resolverURL: String = DEFAULT_RESOLVER_URL,proxyAddress:String? = null) : Closeable {
+public class DoHClient(
+    public val resolverURL: String = DEFAULT_RESOLVER_URL,
+    proxyAddress: String? = null,
+    proxyPort: Int? = null
+) : Closeable {
     private val ktorEngine = OkHttp.create {
-        preconfigured = OkHttpClient.Builder()
-            .retryOnConnectionFailure(true)
-            .build()
+        preconfigured = if (proxyAddress != null && proxyPort != null) {
+            OkHttpClient.Builder()
+                .proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress(proxyAddress, proxyPort)))
+                .retryOnConnectionFailure(true)
+                .build()
+        }else {
+            OkHttpClient.Builder()
+                .retryOnConnectionFailure(true)
+                .build()
+        }
     }
     internal var ktorClient = HttpClient(ktorEngine) {
-        engine {
-            proxyAddress?.let{
-                proxy = ProxyBuilder.http(Url(it))
-            }
-        }
+        engine {}
     }
 
     /**
