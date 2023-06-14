@@ -14,12 +14,14 @@ class SmlDoH(
     private val dohURL: String = "https://sky.rethinkdns.com/",
     private val numFragment: Int = 300,
     private val fragmentSleep: Double = 0.001,
+    private val cacheSize: Int = 1000,
     private var offlineDns:Map<String,String> = mapOf(),//must be lowercase
     private var debugMode:Boolean = false
 ) : Thread() {
     private var serverSocket: ServerSocket? = null
     private var clientSocket: Socket? = null
     private var isReady = false
+    private var cache:MutableMap<String,String> = mutableMapOf()
 
     companion object {
         fun isValidIPAddress(ip: String?): Boolean {
@@ -206,9 +208,26 @@ class SmlDoH(
                         remoteHost = offlineIp
                     }else {
                         if(!isDoh){
-                            val doh = DoHClient(dohURL,proxyAddress,proxyPort)
-                            doh.use {
-                                remoteHost = doh.lookUp(remoteHost!!, "A").data.last()
+                            val cacheIp = cache[remoteHost.lowercase()]
+                            if (cacheIp != null){
+                                remoteHost = cacheIp
+                            }
+                            else {
+                                val doh = DoHClient(dohURL, proxyAddress, proxyPort)
+                                doh.use {
+                                    val key = remoteHost
+                                    remoteHost = doh.lookUp(remoteHost!!, "A").data.last()
+                                    if (cacheSize > 0) {
+                                        key?.let { it1 ->
+                                            remoteHost?.let { it2 ->
+                                                if (cache.size > cacheSize) {
+                                                    cache.remove(cache.keys.first())
+                                                }
+                                                cache[it1] = it2
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
